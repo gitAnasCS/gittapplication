@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stylish Todo App</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .task-item {
+            width: 100%;
+        }
+    </style>
+</head>
+
+<body class="bg-light d-flex justify-content-center align-items-center vh-100">
+    <div class="container bg-white p-4 rounded shadow" style="max-width: 600px;"> 
+        <h1 class="text-center mb-4">Todo List</h1>
+        <div id="alertContainer"></div>
+        <div class="input-group mb-3">
+            <input id="taskInput" type="text" class="form-control" placeholder="New Task">
+            <button class="btn btn-primary" onclick="addTask()">Add</button>
+        </div>
+        <ul id="taskList" class="list-group"></ul>
+        <button id="deleteAllBtn" class="btn btn-danger w-100 mt-3 d-none" onclick="confirmAction = deleteAllTasks; showConfirmModal()">Delete All Tasks</button>
+    </div>
+
+  
+    <div class="modal fade" id="editTaskModal" tabindex="-1" aria-labelledby="editTaskModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editTaskModalLabel">Edit Task</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="text" id="editTaskInput" class="form-control">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="confirmEditTask()">Save Changes</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+   
+    <div class="modal fade" id="confirmModal" tabindex="-1" aria-labelledby="confirmModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="confirmModalLabel">Confirm Action</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    Are you sure you want to proceed?
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="confirmBtn">Yes, do it!</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        let tasks = JSON.parse(localStorage.getItem('tasks')) || [];
+        let confirmAction;
+        let currentEditIndex = null;
+
+        function renderTasks() {
+            const taskList = document.getElementById('taskList');
+            const deleteAllBtn = document.getElementById('deleteAllBtn');
+            taskList.innerHTML = '';
+
+            if (tasks.length > 0) {
+                tasks.forEach((task, index) => {
+                    const li = document.createElement('li');
+                    li.className = 'list-group-item d-flex flex-column align-items-stretch task-item';
+
+                    const isChecked = task.completed ? 'checked' : '';
+                    const taskStyle = task.completed ? 'text-decoration: line-through;' : '';
+
+                    li.innerHTML = `
+                        <div class="d-flex justify-content-between align-items-center w-100 mb-2">
+                            <div class="form-check flex-grow-1">
+                                <input class="form-check-input me-2" type="checkbox" onclick="toggleTaskComplete(${index})" ${isChecked}>
+                                <span style="${taskStyle}">${task.text}</span>
+                            </div>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center w-100">
+                            <button class="btn btn-sm btn-warning flex-grow-1 me-1" onclick="openEditTaskModal(${index})">Edit</button>
+                            <button class="btn btn-sm btn-danger flex-grow-1 me-1" onclick="confirmAction = () => deleteTask(${index}); showConfirmModal()">Delete</button>
+                            <button class="btn btn-sm btn-secondary flex-grow-1 me-1" onclick="moveUp(${index})">Up</button>
+                            <button class="btn btn-sm btn-secondary flex-grow-1 me-1" onclick="moveDown(${index})">Down</button>
+                            <button class="btn btn-sm btn-info flex-grow-1" onclick="duplicateTask(${index})">Duplicate</button>
+                        </div>
+                    `;
+                    taskList.appendChild(li);
+                });
+                deleteAllBtn.classList.remove('d-none');
+            } else {
+                deleteAllBtn.classList.add('d-none');
+            }
+
+            localStorage.setItem('tasks', JSON.stringify(tasks));
+        }
+
+        function addTask() {
+            const taskInput = document.getElementById('taskInput').value;
+            if (taskInput) {
+                tasks.push({ text: taskInput, completed: false });
+                document.getElementById('taskInput').value = '';
+                renderTasks();
+                showAlert('Task added successfully!', 'success');
+            }
+        }
+
+        function toggleTaskComplete(index) {
+            tasks[index].completed = !tasks[index].completed;
+            renderTasks();
+        }
+
+        function openEditTaskModal(index) {
+            currentEditIndex = index;
+            document.getElementById('editTaskInput').value = tasks[index].text;
+            const editTaskModal = new bootstrap.Modal(document.getElementById('editTaskModal'));
+            editTaskModal.show();
+        }
+
+        function confirmEditTask() {
+            const newTaskText = document.getElementById('editTaskInput').value;
+            if (newTaskText && currentEditIndex !== null) {
+                tasks[currentEditIndex].text = newTaskText;
+                renderTasks();
+                showAlert('Task edited successfully!', 'info');
+                currentEditIndex = null;
+                const editTaskModal = bootstrap.Modal.getInstance(document.getElementById('editTaskModal'));
+                editTaskModal.hide();
+            }
+        }
+
+        function deleteTask(index) {
+            tasks.splice(index, 1);
+            renderTasks();
+            showAlert('Task deleted successfully!', 'danger');
+        }
+
+        function deleteAllTasks() {
+            tasks = [];
+            renderTasks();
+            showAlert('All tasks have been deleted!', 'danger');
+        }
+
+        function moveUp(index) {
+            if (index > 0) {
+                [tasks[index - 1], tasks[index]] = [tasks[index], tasks[index - 1]];
+                renderTasks();
+                showAlert('Task moved up!', 'info');
+            }
+        }
+
+        function moveDown(index) {
+            if (index < tasks.length - 1) {
+                [tasks[index + 1], tasks[index]] = [tasks[index], tasks[index + 1]];
+                renderTasks();
+                showAlert('Task moved down!', 'info');
+            }
+        }
+
+        function duplicateTask(index) {
+            tasks.splice(index + 1, 0, tasks[index]);
+            renderTasks();
+            showAlert('Task duplicated successfully!', 'info');
+        }
+
+        function showAlert(message, type) {
+            const alertContainer = document.getElementById('alertContainer');
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+            alertDiv.role = 'alert';
+            alertDiv.innerHTML = `
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            `;
+            alertContainer.appendChild(alertDiv);
+        }
+
+        function showConfirmModal() {
+            const confirmModal = new bootstrap.Modal(document.getElementById('confirmModal'));
+            confirmModal.show();
+        }
+
+        document.getElementById('confirmBtn').addEventListener('click', function () {
+            if (typeof confirmAction === 'function') {
+                confirmAction();
+            }
+            const confirmModal = bootstrap.Modal.getInstance(document.getElementById('confirmModal'));
+            confirmModal.hide();
+        });
+
+        renderTasks();
+    </script>
+</body>
+
+</html>
